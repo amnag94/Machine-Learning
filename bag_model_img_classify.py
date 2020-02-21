@@ -21,12 +21,14 @@ def showImage(img, img_name):
     cv.waitKey(0)
     cv.destroyAllWindows()
 
-def getKeyPoints(img_gray, img):
+def getKeyPoints(img_gray, img, display=False, window_name=''):
     '''
         Use SIFT from the cv2 library to get key points
         for the image passed i.e. img
     :param img_gray: grayscale of image img
     :param img: image to find key points for
+    :param display : whether to show image with key points
+    :param window_name : name of window if image displayed
     :return: detected key points and sift created
     '''
 
@@ -37,7 +39,8 @@ def getKeyPoints(img_gray, img):
 
     cv.imwrite('sift_keypoints.jpg', img)
 
-    #showImage(img, 'Image with key points')
+    if display:
+        showImage(img, window_name)
 
     return key_points, sift
 
@@ -85,11 +88,13 @@ def formBagOfWords(descriptors, words_count):
 
     return k_mean, bag_of_words
 
-def baggingOneImage(img_src, words_count):
+def baggingOneImage(img_src, words_count, display=False, window_name=''):
     '''
         Perform bagging for this image with k means and
         bag of words.
     :param img_src: path for this image
+    :param display : whether to show image with key points
+    :param window_name : name of window if image displayed
     :return: bag of words for this image
     '''
 
@@ -98,7 +103,7 @@ def baggingOneImage(img_src, words_count):
     img_gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
     # Find key points for img using SIFT
-    key_points, sift = getKeyPoints(img_gray, img)
+    key_points, sift = getKeyPoints(img_gray, img, display, window_name)
 
     # Compute descriptors for key points
     key_points, descriptors = computeDescriptors(img_gray, sift, key_points)
@@ -127,9 +132,17 @@ def train_for_set(set_name, path, word_count):
     # Set of bag of words for this set with labels
     classifier_train_set = []
 
+    # Display only one image per category
+    # so keep track if already displayed
+    displayed = False
+    window_name = set_name + " image with key points"
+
     for image in train_set:
-        bag_for_image = baggingOneImage(path + "/" + image, word_count)
+        bag_for_image = baggingOneImage(path + "/" + image, word_count, not displayed, window_name)
         bag_values = list(bag_for_image.values())
+
+        # One image displayed already by now
+        displayed = True
 
         # Add the label
         bag_values.append(set_name)
@@ -156,11 +169,11 @@ def main():
     # it is stored in this set
     classifier_train_set = []
 
-    print("Accordian")
+    print("Accordion")
     # Accordion training set
-    accordian_set = train_for_set('accordion', 'train/accordion', word_count)
+    accordion_set = train_for_set('accordion', 'train/accordion', word_count)
 
-    classifier_train_set.append(accordian_set)
+    classifier_train_set.append(accordion_set)
 
     print("Dollar Bill")
     # Dollar Bill training set
@@ -182,9 +195,16 @@ def main():
 
     # We shuffle the data to enable training better
 
+    # We need to use pandas DataFrame to get labels and input
+    classifier_train_set = pd.DataFrame(classifier_train_set)
+
+    # Size of list is word count + 1 and last one are labels
+    labels = classifier_train_set[word_count]
+    input = classifier_train_set
 
     # Train classifier using generated classifier train set
-
+    classifier = svm.SVC()
+    classifier.fit(input, labels)
 
     print(classifier_train_set)
 
